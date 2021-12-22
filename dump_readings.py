@@ -128,6 +128,18 @@ ORDER BY device_id"""
         devs.append({'device_id': row[0], 'detailed_location': row[1]})
     return devs
 
+def get_rooms(db, include_private=False):
+    q = """
+SELECT DISTINCT room
+FROM device_location
+WHERE (? OR private = 0)
+AND (? OR (start <= ? AND (finish is NULL OR ? < finish)))
+ORDER BY room"""
+    rooms = []
+    for row in db.execute(q, (include_private, args.date is None, args.date)):
+        rooms.append(row[0])
+    return rooms
+
 def main(cfg):
     db = sqlite3.connect(cfg['sqlite3_db_filename'])
     db.row_factory = sqlite3.Row
