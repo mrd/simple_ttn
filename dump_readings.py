@@ -24,25 +24,31 @@ argparser.add_argument('--red-y-value', metavar='N', type=int, default=800,
 argparser.add_argument('--strip-device-id-prefix', metavar='N', type=int, default=13,
                        help='Number of characters to strip off device_ids in display')
 args = argparser.parse_args()
-    
+
 def load_cfg():
     with open('configuration.json', 'r') as fp:
         cfg = json.load(fp)
     return cfg
+
+def js_header():
+    print("""
+    <html><head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.css">
+<script type="text/javascript">
+""")
 
 def js_output(db, cur, fixed, devs):
     # db - sqlite3 connection
     # cur - cursor for query (should have 'timestamp' and 'co2' columns)
     # fixed - fixed parameters that are unchanging (i.e. the WHERE condition)
     # devs - devices we expect to see in the results
+    js_header()
     title = ', '.join([f"{k}={v}" for k, v in fixed.items()])
     print("""
-<html><head>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.css">
-<script type="text/javascript">
-const data = [""")
+const data = [
+""")
     xval = None
     yvals = {d['device_id']:0 for d in devs}
     first=True
@@ -70,6 +76,13 @@ const data = [""")
     labels = ["timestamp"] + list([d['detailed_location'] for d in devs])
     print("];")
     print("const ambYval = {}, redYval = {};".format(args.amber_y_value, args.red_y_value))
+
+    js_options(title, labels)
+    js_mid()
+    print("""<div style="width:100%; height="300px" id="chart"></div>""")
+    js_footer()
+
+def js_options(title, labels):
     print("""
 function legendFormatter(data) {
   if (data.x == null) return '';  // no selection
@@ -104,14 +117,13 @@ underlayCallback: function (canvas, area, g) {
 $(document).ready(function() {
 const g = new Dygraph(document.getElementById("chart"), data, options);
 });
-
-</script>
-</head>
-<body> 
-<div style="width:100%; height="300px" id="chart"></div>
-<div id="legend"></div>
-</body></html>
 """.replace('{labels}', str(labels)).replace('{title}', title))
+
+def js_mid():
+    print("""</script></head><body>""")
+
+def js_footer():
+    print("""</body></html>""")
 
 def get_devices_in_room(db, room):
     q = """
@@ -161,7 +173,7 @@ ORDER BY timestamp, device_id
 
         if args.javascript:
             # {'timestamp': row[0], 'device_id': row[1], 'co2': row[2], 'detailed_location': row[3], 'private': row[4]}
-            
+
             # js_output()
             js_output(db, cur, {'room': args.room}, devs)
         else:
@@ -188,4 +200,3 @@ ORDER BY timestamp
 if __name__ == "__main__":
     cfg = load_cfg()
     main(cfg)
-
