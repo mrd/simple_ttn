@@ -17,6 +17,10 @@ argparser.add_argument('-J', '--javascript', action='store_true',
                        help='Javascript/HTML output')
 argparser.add_argument('-D', '--date', metavar='DATE', type=str,
                        help='Search for data from a particular date')
+argparser.add_argument('--amber-y-value', metavar='N', type=int, default=600,
+                       help='Amber horizontal line at N ppm CO2')
+argparser.add_argument('--red-y-value', metavar='N', type=int, default=800,
+                       help='Red horizontal line at N ppm CO2')
 argparser.add_argument('--strip-device-id-prefix', metavar='N', type=int, default=13,
                        help='Number of characters to strip off device_ids in display')
 args = argparser.parse_args()
@@ -64,9 +68,9 @@ const data = [""")
         yvals[row['device_id']] = co2
     #labels = ["timestamp"] + list([d['device_id'][args.strip_device_id_prefix:] for d in devs])
     labels = ["timestamp"] + list([d['detailed_location'] for d in devs])
+    print("];")
+    print("const ambYval = {}, redYval = {};".format(args.amber_y_value, args.red_y_value))
     print("""
-];
-
 function legendFormatter(data) {
   if (data.x == null) return '';  // no selection
   function f(v) {
@@ -86,7 +90,16 @@ highlightSeriesOpts: { strokeWidth: 2 },
 legend: 'follow',
 ylabel: 'CO<sub>2</sub> (ppm)',
 labels: {labels},
-title: '{title}'
+title: '{title}',
+underlayCallback: function (canvas, area, g) {
+    var ambline = g.toDomYCoord(ambYval+2);
+    var redline = g.toDomYCoord(redYval+2);
+
+    canvas.fillStyle = "rgba(255, 191, 0, 1.0)";
+    canvas.fillRect(area.x, ambline, area.w, 2);
+    canvas.fillStyle = "rgba(255, 0, 0, 1.0)";
+    canvas.fillRect(area.x, redline, area.w, 2);
+  }
 };
 $(document).ready(function() {
 const g = new Dygraph(document.getElementById("chart"), data, options);
