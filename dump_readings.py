@@ -72,8 +72,8 @@ function legendFormatter(data) {
   function f(v) {
     var yCSS = '';
     if(v.y == null) return '';
-    if(v.isHighlighted) yCSS = 'font-weight: bolder';
-    return '<tr style="color: ' + v.color + '"><td>' + v.dashHTML + '</td><td>device ' + v.labelHTML + ':</td><td style="' + yCSS + '">CO<sub>2</sub> = ' + v.yHTML + ' ppm</td></tr>';
+    if(v.isHighlighted) yCSS = 'font-weight: bolder;';
+    return '<tr style="' + yCSS + 'color: ' + v.color + '"><td>' + v.dashHTML + '</td><td>device ' + v.labelHTML + ':</td><td>CO<sub>2</sub> = ' + v.yHTML + ' ppm</td></tr>';
   };
   return '<strong>' + data.xHTML + '</strong><table>' + data.series.map(f).join(' ') + '</table>';
 }
