@@ -47,6 +47,7 @@ const data = [""")
         co2 = row['co2']
         if xval is None or ts != xval:
             if xval is not None:
+                # previous xval (data row) is finished, print it
                 if not first: print(", ", end="")
                 else: first = False
                 print(f"[new Date('{xval}')", end="")
@@ -54,11 +55,15 @@ const data = [""")
                     if y == 0: y = "null" # treat 0 as a gap in the data
                     print(f", {y}", end="")
                 print("]")
+
+            # now working on new xval (data row), reset yval table
             xval = ts
             yvals = {d:0 for d in yvals}
-        else:
-            yvals[row['device_id']] = co2
-    labels = ["timestamp"] + list([d['device_id'][args.strip_device_id_prefix:] for d in devs])
+
+        # add yval to current table indexed by device_id
+        yvals[row['device_id']] = co2
+    #labels = ["timestamp"] + list([d['device_id'][args.strip_device_id_prefix:] for d in devs])
+    labels = ["timestamp"] + list([d['detailed_location'] for d in devs])
     print("""
 ];
 
