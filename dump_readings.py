@@ -15,6 +15,8 @@ argparser.add_argument('-r', '--room', metavar='ROOM', type=str,
                        help='Search by room identifier')
 argparser.add_argument('-J', '--javascript', action='store_true',
                        help='Javascript/HTML output')
+argparser.add_argument('-j', '--json', action='store_true',
+                       help='JSON output')
 argparser.add_argument('-D', '--date', metavar='DATE', type=str,
                        help='Search for data from a particular date')
 argparser.add_argument('--amber-y-value', metavar='N', type=int, default=600,
@@ -29,6 +31,39 @@ def load_cfg():
     with open('configuration.json', 'r') as fp:
         cfg = json.load(fp)
     return cfg
+
+def json_output(db, cur, fixed, devs):
+    # db - sqlite3 connection
+    # cur - cursor for query (should have 'timestamp' and 'co2' columns)
+    # fixed - fixed parameters that are unchanging (i.e. the WHERE condition)
+    # devs - devices we expect to see in the results
+    print("{{'fixed': {}, 'data': [".format(fixed))
+    xval = None
+    yvals = {d['device_id']:0 for d in devs}
+    first=True
+    for row in cur:
+        ts = row['timestamp']
+        co2 = row['co2']
+        if xval is None or ts != xval:
+            if xval is not None:
+                # previous xval (data row) is finished, print it
+                if not first: print(", ", end="")
+                else: first = False
+                print(f"['{xval}'", end="")
+                for y in yvals.values():
+                    if y == 0: y = "null" # treat 0 as a gap in the data
+                    print(f", {y}", end="")
+                print("]")
+
+            # now working on new xval (data row), reset yval table
+            xval = ts
+            yvals = {d:0 for d in yvals}
+
+        # add yval to current table indexed by device_id
+        yvals[row['device_id']] = co2
+    #labels = ["timestamp"] + list([d['device_id'][args.strip_device_id_prefix:] for d in devs])
+    labels = [{'type': 'timestamp'}] + list([{'type': 'co2', 'room': d['room'], 'detailed_location': d['detailed_location']} for d in devs])
+    print("], 'labels': {}}}".format(labels))
 
 def js_header():
     print("""
@@ -127,17 +162,17 @@ def js_footer():
 
 def get_devices_in_room(db, room):
     q = """
-SELECT DISTINCT device_id, detailed_location
+SELECT DISTINCT device_id, room, detailed_location
 FROM readings JOIN device_location USING (device_id)
-WHERE room = ?
+WHERE (? OR room = ?)
 AND start <= timestamp
 AND (finish IS NULL OR timestamp < finish)
 AND (? OR DATE(timestamp) = DATE(?))
 GROUP BY strftime('%s', timestamp)/300, device_id
-ORDER BY device_id"""
+ORDER BY room, detailed_location, device_id"""
     devs = []
-    for row in db.execute(q, (room, args.date is None, args.date)):
-        devs.append({'device_id': row[0], 'detailed_location': row[1]})
+    for row in db.execute(q, (room is None, room, args.date is None, args.date)):
+        devs.append({'device_id': row[0], 'room': row[1], 'detailed_location': row[2]})
     return devs
 
 def get_rooms(db, include_private=False):
@@ -151,6 +186,10 @@ ORDER BY room"""
     for row in db.execute(q, (include_private, args.date is None, args.date)):
         rooms.append(row[0])
     return rooms
+
+def get_date(db, date):
+    if date is None: return date
+    return db.execute("SELECT DATE(?)", (date, )).fetchone()[0]
 
 def main(cfg):
     db = sqlite3.connect(cfg['sqlite3_db_filename'])
@@ -171,11 +210,10 @@ ORDER BY timestamp, device_id
         cur = db.cursor()
         cur.execute(q, (args.room, args.date is None, args.date))
 
-        if args.javascript:
-            # {'timestamp': row[0], 'device_id': row[1], 'co2': row[2], 'detailed_location': row[3], 'private': row[4]}
-
-            # js_output()
-            js_output(db, cur, {'room': args.room}, devs)
+        if args.json:
+            json_output(db, cur, {'room': args.room, 'date': get_date(db, args.date)}, devs)
+        elif args.javascript:
+            js_output(db, cur, {'room': args.room, 'date': get_date(db, args.date)}, devs)
         else:
             for row in cur:
                 print({k:row[k] for k in sorted(row.keys())})
