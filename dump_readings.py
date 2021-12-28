@@ -25,6 +25,8 @@ argparser.add_argument('--red-y-value', metavar='N', type=int, default=800,
                        help='Red horizontal line at N ppm CO2')
 argparser.add_argument('--strip-device-id-prefix', metavar='N', type=int, default=13,
                        help='Number of characters to strip off device_ids in display')
+argparser.add_argument('-I', '--interval', metavar='N', type=int, default=10,
+                       help='Intervals (in minutes) for grouping readings')
 args = argparser.parse_args()
 
 def load_cfg():
@@ -168,10 +170,10 @@ WHERE (? OR room = ?)
 AND start <= timestamp
 AND (finish IS NULL OR timestamp < finish)
 AND (? OR DATE(timestamp) = DATE(?))
-GROUP BY strftime('%s', timestamp)/300, device_id
+GROUP BY strftime('%s', timestamp)/?, device_id
 ORDER BY room, detailed_location, device_id"""
     devs = []
-    for row in db.execute(q, (room is None, room, args.date is None, args.date)):
+    for row in db.execute(q, (room is None, room, args.date is None, args.date, args.interval * 60)):
         devs.append({'device_id': row[0], 'room': row[1], 'detailed_location': row[2]})
     return devs
 
@@ -198,17 +200,18 @@ def main(cfg):
         devs = get_devices_in_room(db, args.room)
 
         q = """
-SELECT datetime(strftime('%s', timestamp)/300*300, 'unixepoch') AS timestamp, device_id, co2, detailed_location, private
+SELECT datetime(strftime('%s', timestamp)/?*?, 'unixepoch') AS timestamp, device_id, co2, detailed_location, private
 FROM readings JOIN device_location USING (device_id)
 WHERE room = ?
 AND start <= timestamp
 AND (finish IS NULL OR timestamp < finish)
 AND (? OR DATE(timestamp) = DATE(?))
-GROUP BY strftime('%s', timestamp)/300, device_id
+GROUP BY strftime('%s', timestamp)/?, device_id
 ORDER BY timestamp, device_id
 """
         cur = db.cursor()
-        cur.execute(q, (args.room, args.date is None, args.date))
+        intv = args.interval * 60
+        cur.execute(q, (intv, intv, args.room, args.date is None, args.date, intv))
 
         if args.json:
             json_output(db, cur, {'room': args.room, 'date': get_date(db, args.date)}, devs)
