@@ -237,6 +237,29 @@ ORDER BY timestamp
         else:
             for row in db.execute(q, (args.device_id, )):
                 print(row)
+    else:
+        devs = get_devices_in_room(db, None)
+
+        q = """
+SELECT datetime(strftime('%s', timestamp)/?*?, 'unixepoch') AS timestamp, device_id, co2, room, detailed_location, private
+FROM readings JOIN device_location USING (device_id)
+WHERE start <= timestamp
+AND (finish IS NULL OR timestamp < finish)
+AND (? OR DATE(timestamp) = DATE(?))
+GROUP BY strftime('%s', timestamp)/?, device_id
+ORDER BY timestamp, room, detailed_location, device_id
+"""
+        cur = db.cursor()
+        intv = args.interval * 60
+        cur.execute(q, (intv, intv, args.date is None, args.date, intv))
+
+        if args.json:
+            json_output(db, cur, {'date': get_date(db, args.date)}, devs)
+        elif args.javascript:
+            js_output(db, cur, {'date': get_date(db, args.date)}, devs)
+        else:
+            for row in cur:
+                print({k:row[k] for k in sorted(row.keys())})
 
 if __name__ == "__main__":
     cfg = load_cfg()
