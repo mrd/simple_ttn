@@ -39,7 +39,7 @@ def json_output(db, cur, fixed, devs):
     # cur - cursor for query (should have 'timestamp' and 'co2' columns)
     # fixed - fixed parameters that are unchanging (i.e. the WHERE condition)
     # devs - devices we expect to see in the results
-    print("{{'fixed': {}, 'data': [".format(fixed))
+    print('{{"fixed": {}, "data": ['.format(json.dumps(fixed)))
     xval = None
     yvals = {d['device_id']:0 for d in devs}
     first=True
@@ -51,7 +51,7 @@ def json_output(db, cur, fixed, devs):
                 # previous xval (data row) is finished, print it
                 if not first: print(", ", end="")
                 else: first = False
-                print(f"['{xval}'", end="")
+                print(f'["{xval}"', end="")
                 for y in yvals.values():
                     if y == 0: y = "null" # treat 0 as a gap in the data
                     print(f", {y}", end="")
@@ -65,7 +65,7 @@ def json_output(db, cur, fixed, devs):
         yvals[row['device_id']] = co2
     #labels = ["timestamp"] + list([d['device_id'][args.strip_device_id_prefix:] for d in devs])
     labels = [{'type': 'timestamp'}] + list([{'type': 'co2', 'room': d['room'], 'detailed_location': d['detailed_location']} for d in devs])
-    print("], 'labels': {}}}".format(labels))
+    print('], "labels": {}}}'.format(json.dumps(labels)))
 
 def js_header():
     print("""
