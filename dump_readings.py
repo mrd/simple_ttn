@@ -27,10 +27,12 @@ argparser.add_argument('--strip-device-id-prefix', metavar='N', type=int, defaul
                        help='Number of characters to strip off device_ids in display')
 argparser.add_argument('-I', '--interval', metavar='N', type=int, default=10,
                        help='Intervals (in minutes) for grouping readings')
+argparser.add_argument('--config', metavar='FILE', type=str, default='configuration.json',
+                       help='Path to configuration file')
 args = argparser.parse_args()
 
 def load_cfg():
-    with open('configuration.json', 'r') as fp:
+    with open(args.config, 'r') as fp:
         cfg = json.load(fp)
     return cfg
 
