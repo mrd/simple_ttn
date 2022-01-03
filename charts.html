@@ -1,0 +1,176 @@
+<html>
+  <head>
+    <style>
+      #chart {
+	  max-width: 650px;
+	  margin: 35px auto;
+      }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" integrity="sha512-uto9mlQzrs59VwILcLiRYeLKPPbS/bT71da/OEBYEwcdNUk8jYIy+D176RYoop1Da+f9mvkYrmj5MCLZWEtQuA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css" integrity="sha512-aOG0c6nPNzGk+5zjwyJaoRUgCdOrfSDhmMID2u4+OIslr0GjpLKo7Xm0Ao3xmpM4T8AmIouRkqwj1nrdVsLKEQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/apexcharts/3.32.1/apexcharts.min.js" integrity="sha512-JSsrXEHqMT7k/tJkCDX82lqxSmR0yRKQ7nPoxfiA2Xuga4EomTDmb6EtPNgLxpqe6cw+N0jj/mHb9uPXpBcidw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/apexcharts/3.32.1/apexcharts.min.css" integrity="sha512-Tv+8HvG00Few62pkPxSs1WVfPf9Hft4U1nMD6WxLxJzlY/SLhfUPFPP6rovEmo4zBgwxMsArU6EkF11fLKT8IQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script type="text/javascript">
+      var rooms = ['Balcony', 'Great Hall', 'Hamied', 'New Court Seminar Room', 'Upper Hall', 'Z4', 'Z6', 'Z8'];
+      var x_type = 'timestamp';
+      var y_types = ['co2'];
+      var options = {
+	  chart: {
+	      height: 380,
+	      width: "100%",
+
+	      animations: {
+		  initialAnimation: {
+		      enabled: false
+		  }
+	      }
+	  },
+	  // series: [
+	  //     {
+	  //	  name: "Series 1",
+	  //	  data: [
+	  //	      {
+	  //		  x: "2017-02-10 00:00 GMT",
+	  //		  y: 34
+	  //	      },
+	  //	      {
+	  //		  x: "2017-02-10 06:00 GMT",
+	  //		  y: 43
+	  //	      },
+	  //	      {
+	  //		  x: "02-12-2017 GMT",
+	  //		  y: 31
+	  //	      },
+	  //	      {
+	  //		  x: "02-13-2017 GMT",
+	  //		  y: 43
+	  //	      },
+	  //	      {
+	  //		  x: "02-14-2017 GMT",
+	  //		  y: 33
+	  //	      },
+	  //	      {
+	  //		  x: "02-15-2017 GMT",
+	  //		  y: 52
+	  //	      }
+	  //	  ]
+	  //     }
+	  // ],
+	  series: [],
+	  xaxis: {
+	      type: "datetime"
+	  },
+	  noData: { text: 'Loading...' }
+      };
+
+      var chart;
+      var datedb = {};
+      var current_room, current_date, today, last_update = null;
+
+      function need_update(d) {
+	  if(!datedb[d]) return true;
+	  if(d==today) {
+	      return last_update == null ||
+		  (Date.now() - last_update) > 3 * 60 * 1000; // cache for 3min
+	  }
+	  return false;
+      }
+
+      function get_date_data(d, succ_fn=null) {
+	  url = d + '.json';
+	  if(!need_update(d)) {
+	      if(succ_fn) succ_fn(datedb[d]);
+	      return;
+	  }
+	  $.getJSON(url, function(response) {
+	      console.log('response = ');
+	      // console.log(response);
+	      datedb[d] = response;
+	      last_update = new Date();
+	      datedb[d].timestamp = last_update;
+	      today = last_update.toISOString().slice(0,10); // just in case
+	      if(succ_fn) succ_fn(datedb[d]);
+	  }).fail(function (jqxhr, textStatus, error) {
+	      var err = textStatus + ", " + error + ': data source: ' + url;
+	      console.log( "Request Failed: " + err );
+	      $('#console').text(err);
+	  });
+      }
+
+      function transform_date_data(d) {
+	  if(!datedb[d]) return null;
+	  return transform_date_data2(datedb[d]);
+      }
+
+      function transform_date_data2(date_data) {
+	  data = date_data.data;
+	  labs = date_data.labels;
+	  series = [];
+	  series.length = labs.length - 1;
+	  for(i=0;i<data.length;i++) {
+	      ts = data[i][0];
+	      for(j=1;j<data[i].length;j++) {
+		  k = j - 1;
+		  if(!series[k]) {
+		      n = labs[j].room;
+		      if(labs[j].detailed_location)
+			  n+=': '+ labs[j].detailed_location;
+		      series[k] = { name: n, data: [], room: labs[j].room };
+		  }
+		  if(data[i][j])
+		      series[k].data.push({x: ts, y: data[i][j]});
+	      }
+	  }
+	  return series;
+      }
+
+      function update_chart() {
+	  get_date_data(current_date, function (date_data) {
+	      series = transform_date_data2(date_data);
+	      series2 = [];
+	      for(i=0;i<series.length;i++) {
+		  if(series[i].room == current_room)
+		      series2.push(series[i]);
+	      }
+	      chart.updateSeries(series2);
+	  });
+      }
+
+      $(document).ready(function() {
+	  $('#datepicker').datepicker();
+	  $('#datepicker').datepicker('option', 'dateFormat', 'yy-mm-dd');
+	  $('#datepicker').datepicker('option', 'onSelect', function (dateText, inst) {
+	      //console.log(dateText);
+	      current_date = dateText;
+	      update_chart();
+	  });
+	  $('#datepicker').datepicker('setDate', '+0d');
+	  current_date = $('#datepicker').datepicker('getDate').toISOString().slice(0,10);
+	  today = current_date; // because of +0d above
+	  get_date_data(current_date);
+
+	  for(i=0;i<rooms.length;i++) {
+	      r = rooms[i];
+	      $('#roompicker').append('<option value="'+r+'">'+r+'</option>');
+	  }
+	  $('#roompicker').selectmenu({ select: function (event, ui) {
+	      //console.log($(this).val());
+	      current_room = $(this).val();
+	      update_chart();
+	  }});
+	  current_room = $('#roompicker').val();
+	  chart = new ApexCharts(document.querySelector("#chart"), options);
+	  chart.render();
+	  $('body').click(function() { $('#console').empty(); }); // clear console on click
+	  update_chart();
+      });
+    </script>
+  </head>
+  <body>
+    <div id="console"></div>
+    <input type="text" id="datepicker" readonly>
+    <select name="room" id="roompicker"></select>
+    <div id="chart"></div>
+  </body>
+</html>
