@@ -2,8 +2,11 @@
   <head>
     <style>
       #chart {
-	  max-width: 650px;
 	  margin: 35px auto;
+      }
+      #dayname {
+	  display: inline-block;
+	  width: 2em;
       }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -17,7 +20,7 @@
       var y_types = ['co2'];
       var options = {
 	  chart: {
-	      height: 380,
+	      height: 500,
 	      width: "100%",
 
 	      animations: {
@@ -30,8 +33,10 @@
 	  xaxis: {
 	      type: "datetime"
 	  },
+	  yaxis: { title: { text: 'Carbon Dioxide (ppm)', style: { fontSize: '16px' } }, tickAmount: 10 },
 	  noData: { text: 'Loading...' },
-    tooltip: { x: { format: 'HH:mm' }}
+	  tooltip: { x: { format: 'HH:mm' }},
+	  legend: { show: true, showForSingleSeries: true, showForNullSeries: false }
       };
 
       var chart;
@@ -111,18 +116,20 @@
       $(document).ready(function() {
 	  $('#datepicker').datepicker({ maxDate: 0, dateFormat: 'yy-mm-dd', minDate: '2021-12-22' });
 	  $('#datepicker').datepicker('option', 'onSelect', function (dateText, inst) {
-      if(dateText !== inst.lastVal) {
-        $(this).change();
-      }
+	      if(dateText !== inst.lastVal) {
+		  $(this).change();
+	      }
 	  });
-    $('#datepicker').change(function() {
+	  $('#datepicker').change(function() {
 	      //console.log(dateText);
 	      current_date = this.value;
+	      $('#dayname').text(new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(new Date(current_date)));
 	      update_chart();
-    });
+	  });
 	  $('#datepicker').datepicker('setDate', '+0d');
 	  current_date = $('#datepicker').datepicker('getDate').toISOString().slice(0,10);
 	  today = current_date; // because of +0d above
+	  $('#dayname').text(new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(new Date(current_date)));
 	  get_date_data(current_date);
 
 	  for(i=0;i<rooms.length;i++) {
@@ -184,8 +191,9 @@
   </head>
   <body>
     <div id="console"></div>
-    <input type="text" id="datepicker" readonly>
+    <span id="dayname"></span><input type="text" id="datepicker" readonly>
     <select name="room" id="roompicker"></select>
     <div id="chart"></div>
+    <p>Use keyboard arrow keys: &emsp; <strong>&#8592;&#8594;</strong> select date &emsp; <strong>&#8595;&#8593</strong> select room</p>
   </body>
 </html>
