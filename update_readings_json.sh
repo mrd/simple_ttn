@@ -7,12 +7,14 @@
 wdir="$1"
 cfg="$2"
 dest="$3"
+date="$4"
+[ -z "$date" ] && date="`date -I`"
 
-filename="`date -I`.json"
+filename="$date.json"
 
 tmpfile="$dest/.$filename"
 destfile="$dest/$filename"
 
 cd "$wdir"
-python3 dump_readings.py --config "$cfg" -D "`date -I`" -j > "$tmpfile" && mv "$tmpfile" "$destfile"
+python3 dump_readings.py --config "$cfg" -D "$date" -j > "$tmpfile" && mv "$tmpfile" "$destfile"
 
