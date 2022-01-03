@@ -1,3 +1,2 @@
 paho-mqtt
-sqlite3
 python-dateutil
