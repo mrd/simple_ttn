@@ -53,7 +53,7 @@
 	      return;
 	  }
 	  $.getJSON(url, function(response) {
-	      console.log('response = ');
+	      // console.log('response = ');
 	      // console.log(response);
 	      datedb[d] = response;
 	      last_update = new Date();
@@ -107,13 +107,17 @@
       }
 
       $(document).ready(function() {
-	  $('#datepicker').datepicker();
-	  $('#datepicker').datepicker('option', 'dateFormat', 'yy-mm-dd');
+	  $('#datepicker').datepicker({ maxDate: 0, dateFormat: 'yy-mm-dd', minDate: '2021-12-22' });
 	  $('#datepicker').datepicker('option', 'onSelect', function (dateText, inst) {
-	      //console.log(dateText);
-	      current_date = dateText;
-	      update_chart();
+      if(dateText !== inst.lastVal) {
+        $(this).change();
+      }
 	  });
+    $('#datepicker').change(function() {
+	      //console.log(dateText);
+	      current_date = this.value;
+	      update_chart();
+    });
 	  $('#datepicker').datepicker('setDate', '+0d');
 	  current_date = $('#datepicker').datepicker('getDate').toISOString().slice(0,10);
 	  today = current_date; // because of +0d above
@@ -123,15 +127,55 @@
 	      r = rooms[i];
 	      $('#roompicker').append('<option value="'+r+'">'+r+'</option>');
 	  }
-	  $('#roompicker').selectmenu({ select: function (event, ui) {
+	  $('#roompicker').on('change', function () {
 	      //console.log($(this).val());
-	      current_room = $(this).val();
+	      current_room = this.value;
 	      update_chart();
-	  }});
+	  });
 	  current_room = $('#roompicker').val();
 	  chart = new ApexCharts(document.querySelector("#chart"), options);
 	  chart.render();
 	  $('body').click(function() { $('#console').empty(); }); // clear console on click
+    $(document).keydown(function(e){
+        switch(e.which) {
+          case $.ui.keyCode.LEFT:
+          date = $('#datepicker').datepicker('getDate');
+          date.setDate(date.getDate() - 1)
+          $('#datepicker').datepicker("setDate", date);
+          $('#datepicker').change();
+          break;
+
+          case $.ui.keyCode.UP:
+          $("#roompicker > option:selected")
+                  .prop("selected", false)
+                  .prev()
+                  .prop("selected", true);
+          $('#roompicker').change();
+          break;
+
+          case $.ui.keyCode.RIGHT:
+          date = $('#datepicker').datepicker('getDate');
+          date.setDate(date.getDate() + 1)
+          $('#datepicker').datepicker("setDate", date);
+          $('#datepicker').change();
+          break;
+
+          case $.ui.keyCode.DOWN:
+          $("#roompicker > option:selected")
+                  .prop("selected", false)
+                  .next()
+                  .prop("selected", true);
+          $('#roompicker').change();
+          break;
+
+          default: return; // allow other keys to be handled
+      }
+
+      // prevent default action (eg. page moving up/down)
+      // but consider accessibility (eg. user may want to use keys to choose a radio button)
+      e.preventDefault();
+
+    });
 	  update_chart();
       });
     </script>
