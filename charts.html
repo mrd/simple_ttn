@@ -37,12 +37,13 @@
       var chart;
       var datedb = {};
       var current_room, current_date, today, last_update = null;
+      var todays_data_update_interval = 3 * 60 * 1000; // cache for 3min
 
       function need_update(d) {
 	  if(!datedb[d]) return true;
 	  if(d==today) {
-	      return last_update == null ||
-		  (Date.now() - last_update) > 3 * 60 * 1000; // cache for 3min
+	      diff = Date.now() - datedb[d].timestamp;
+	      return diff > todays_data_update_interval;
 	  }
 	  return false;
       }
