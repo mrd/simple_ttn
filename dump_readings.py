@@ -43,7 +43,8 @@ def json_output(db, cur, fixed, devs):
     # devs - devices we expect to see in the results
     print('{{"fixed": {}, "data": ['.format(json.dumps(fixed)))
     xval = None
-    yvals = {d['device_id']:0 for d in devs}
+    y_types = ['co2', 'humidity', 'temperature', 'vdd']
+    yvals = {(d['device_id'], yt):0 for d in devs for yt in y_types}
     first=True
     for row in cur:
         ts = row['timestamp']
@@ -63,10 +64,11 @@ def json_output(db, cur, fixed, devs):
             xval = ts
             yvals = {d:0 for d in yvals}
 
-        # add yval to current table indexed by device_id
-        yvals[row['device_id']] = co2
+        # add yvals to current table indexed by device_id,y_type
+        for y_type in y_types:
+            yvals[(row['device_id'], y_type)] = row[y_type]
     #labels = ["timestamp"] + list([d['device_id'][args.strip_device_id_prefix:] for d in devs])
-    labels = [{'type': 'timestamp'}] + list([{'type': 'co2', 'room': d['room'], 'detailed_location': d['detailed_location']} for d in devs])
+    labels = [{'type': 'timestamp'}] + list([{'type': yt, 'room': d['room'], 'detailed_location': d['detailed_location']} for d in devs for yt in y_types])
     print('], "labels": {}}}'.format(json.dumps(labels)))
 
 def js_header():
@@ -243,7 +245,7 @@ ORDER BY timestamp
         devs = get_devices_in_room(db, None)
 
         q = """
-SELECT datetime(strftime('%s', timestamp)/?*?, 'unixepoch') AS timestamp, device_id, co2, room, detailed_location, private
+SELECT datetime(strftime('%s', timestamp)/?*?, 'unixepoch') AS timestamp, device_id, co2, humidity, room, temperature, vdd, detailed_location, private
 FROM readings JOIN device_location USING (device_id)
 WHERE start <= timestamp
 AND (finish IS NULL OR timestamp < finish)

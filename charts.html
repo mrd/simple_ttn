@@ -17,7 +17,8 @@
     <script type="text/javascript">
       var rooms = ['Balcony', 'Great Hall', 'Hamied', 'New Court Seminar Room', 'Upper Hall', 'Z4', 'Z6', 'Z8'];
       var x_type = 'timestamp';
-      var y_types = ['co2'];
+      var y_titles = {'co2': 'Carbon Dioxide (ppm)', 'humidity': 'Humidity %', 'temperature': 'Temperature (C)', 'vdd': 'Voltage (mV)'};
+      var y_types = ['co2', 'humidity', 'temperature', 'vdd'];
       var options = {
 	  chart: {
 	      height: 500,
@@ -41,7 +42,7 @@
 
       var chart;
       var datedb = {};
-      var current_room, current_date, today, last_update = null;
+      var current_room, current_y_type = 'co2', current_date, today, last_update = null;
       var todays_data_update_interval = 3 * 60 * 1000; // cache for 3min
 
       function need_update(d) {
@@ -92,7 +93,7 @@
 		      n = labs[j].room;
 		      if(labs[j].detailed_location)
 			  n+=': '+ labs[j].detailed_location;
-		      series[k] = { name: n, data: [], room: labs[j].room };
+		      series[k] = { name: n, data: [], room: labs[j].room, data_type: labs[j].type };
 		  }
 		  if(data[i][j])
 		      series[k].data.push({x: ts, y: data[i][j]});
@@ -106,10 +107,11 @@
 	      series = transform_date_data2(date_data);
 	      series2 = [];
 	      for(i=0;i<series.length;i++) {
-		  if(series[i].room == current_room)
+		  if(series[i].room == current_room && series[i].data_type == current_y_type)
 		      series2.push(series[i]);
 	      }
 	      chart.updateSeries(series2);
+	      chart.updateOptions({yaxis: {title: {text: y_titles[current_y_type]}}});
 	  });
       }
 
@@ -132,6 +134,7 @@
 	  $('#dayname').text(new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(new Date(current_date)));
 	  get_date_data(current_date);
 
+	  // setup roompicker
 	  for(i=0;i<rooms.length;i++) {
 	      r = rooms[i];
 	      $('#roompicker').append('<option value="'+r+'">'+r+'</option>');
@@ -142,49 +145,68 @@
 	      update_chart();
 	  });
 	  current_room = $('#roompicker').val();
+
+	  // setup type picker
+	  for(i=0;i<y_types.length;i++) {
+	      yt = y_types[i];
+	      $('#typepicker').append('<option value="'+yt+'">'+yt+'</option>');
+	  }
+	  $('#typepicker').on('change', function () {
+	      //console.log($(this).val());
+	      current_y_type = this.value;
+	      update_chart();
+	  });
+	  current_y_type = $('#typepicker').val();
+
+	  // create chart
 	  chart = new ApexCharts(document.querySelector("#chart"), options);
 	  chart.render();
+
 	  $('body').click(function() { $('#console').empty(); }); // clear console on click
-    $(document).keydown(function(e){
-        switch(e.which) {
-          case $.ui.keyCode.LEFT:
-          date = $('#datepicker').datepicker('getDate');
-          date.setDate(date.getDate() - 1)
-          $('#datepicker').datepicker("setDate", date);
-          $('#datepicker').change();
-          break;
 
-          case $.ui.keyCode.UP:
-          $("#roompicker > option:selected")
-                  .prop("selected", false)
-                  .prev()
-                  .prop("selected", true);
-          $('#roompicker').change();
-          break;
+	  // handle hotkeys
+	  $(document).keydown(function(e){
+	      if(e.shiftKey) picker = '#typepicker';
+	      else picker = '#roompicker';
+	      switch(e.which) {
+	      case $.ui.keyCode.LEFT:
+		  date = $('#datepicker').datepicker('getDate');
+		  date.setDate(date.getDate() - 1)
+		  $('#datepicker').datepicker("setDate", date);
+		  $('#datepicker').change();
+		  break;
 
-          case $.ui.keyCode.RIGHT:
-          date = $('#datepicker').datepicker('getDate');
-          date.setDate(date.getDate() + 1)
-          $('#datepicker').datepicker("setDate", date);
-          $('#datepicker').change();
-          break;
+	      case $.ui.keyCode.UP:
+		  $(picker+" > option:selected")
+		      .prop("selected", false)
+		      .prev()
+		      .prop("selected", true);
+		  $(picker).change();
+		  break;
 
-          case $.ui.keyCode.DOWN:
-          $("#roompicker > option:selected")
-                  .prop("selected", false)
-                  .next()
-                  .prop("selected", true);
-          $('#roompicker').change();
-          break;
+	      case $.ui.keyCode.RIGHT:
+		  date = $('#datepicker').datepicker('getDate');
+		  date.setDate(date.getDate() + 1)
+		  $('#datepicker').datepicker("setDate", date);
+		  $('#datepicker').change();
+		  break;
 
-          default: return; // allow other keys to be handled
-      }
+	      case $.ui.keyCode.DOWN:
+		  $(picker+" > option:selected")
+		      .prop("selected", false)
+		      .next()
+		      .prop("selected", true);
+		  $(picker).change();
+		  break;
 
-      // prevent default action (eg. page moving up/down)
-      // but consider accessibility (eg. user may want to use keys to choose a radio button)
-      e.preventDefault();
+	      default: return; // allow other keys to be handled
+	      }
 
-    });
+	      // prevent default action (eg. page moving up/down)
+	      // but consider accessibility (eg. user may want to use keys to choose a radio button)
+	      e.preventDefault();
+
+	  });
 	  update_chart();
       });
     </script>
@@ -193,7 +215,8 @@
     <div id="console"></div>
     <span id="dayname"></span><input type="text" id="datepicker" readonly>
     <select name="room" id="roompicker"></select>
+    <select name="type" id="typepicker"></select>
     <div id="chart"></div>
-    <p>Use keyboard arrow keys: &emsp; <strong>&#8592;&#8594;</strong> select date &emsp; <strong>&#8595;&#8593</strong> select room</p>
+    <p>Use keyboard arrow keys: &emsp; <strong>&#8592;&#8594;</strong> select date &emsp; <strong>&#8595;&#8593</strong> select room &emsp; <strong>SHIFT+&#8595;&#8593</strong> select data type</p>
   </body>
 </html>
