@@ -35,6 +35,8 @@
 	      type: "datetime"
 	  },
 	  yaxis: { title: { text: 'Carbon Dioxide (ppm)', style: { fontSize: '16px' } }, tickAmount: 10 },
+	  annotations: { yaxis: [ { y: 600, y2: 601, borderColor: '#ffff00', fillColor: '#ffff00' },
+				  { y: 800, y2: 801, borderColor: '#ff0000', fillColor: '#ff0000' }] },
 	  noData: { text: 'Loading...' },
 	  tooltip: { x: { format: 'HH:mm' }},
 	  legend: { show: true, showForSingleSeries: true, showForNullSeries: false }
